@@ -21,8 +21,7 @@ function getInterceptData(observable, originData) {
   observable.subscribe(assign)
   return new Promise((resolve, reject) =>
     setTimeout(() => resolve(data), 20)
-  )
-    .then(assign)
+  ).then(assign)
 }
 
 function getReq(observable, originRequest) {
@@ -61,7 +60,9 @@ if (window.fetch) {
     const innerObservable = new Rx.Subject()
     const url = args.length > 1 ? args[0] : _.get(args[0], 'url', null)
     const request = Object.assign({}, args[1] || {}, { url })
+
     onRequest.next(Object.assign({}, request, { innerObservable }))
+
     return getReq(innerObservable, request)
       .then(handleFetchReq)
       .then(handleFetchRes)
@@ -100,6 +101,7 @@ if (window.XMLHttpRequest) {
         }
         super.send(...args)
       }
+
       onRequest.next(Object.assign({}, request, { innerObservable }))
       getReq(innerObservable, request)
         .then(handleSendReq)
@@ -108,18 +110,27 @@ if (window.XMLHttpRequest) {
 }
 
 function on(type, callback) {
-  if (type === 'request') {
-    onRequestCallback.push(callback)
-  }
+  const list = type === 'request'
+    ? onRequestCallback
+    : type === 'response' ? onResponseCallback : []
 
-  if (type === 'response') {
-    onResponseCallback.push(callback)
-  }
+  list.push(callback)
 }
 
 function off(type, callback) {
-  const nextCallback = onRequestCallback.filter((cb) => cb !== callback)
-  onRequestCallback = nextCallback
+  const isRequest = type === 'request'
+  const isResponse = type === 'response'
+  const list = isRequest
+    ? onRequestCallback
+    : isResponse ? onResponseCallback : null
+
+  if (list) {
+    const nextCallback = list.filter((cb) => cb !== callback)
+    isRequest
+      ? (onRequestCallback = nextCallback)
+      : isResponse ? (onResponseCallback = nextCallback)
+      : null
+  }
 }
 
 function baseRequestListener(request) {
