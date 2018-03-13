@@ -58,14 +58,15 @@ if (window.fetch) {
 
   window.fetch = function (...args) {
     const innerObservable = new Rx.Subject()
-    const url = args.length > 1 ? args[0] : _.get(args[0], 'url', null)
+    const url = _.get(args, '0', null)
     const request = Object.assign({}, args[1] || {}, { url })
+    const fetchResult = getReq(innerObservable, request)
+      .then(handleFetchReq)
+      .then(handleFetchRes)
 
     onRequest.next(Object.assign({}, request, { innerObservable }))
 
-    return getReq(innerObservable, request)
-      .then(handleFetchReq)
-      .then(handleFetchRes)
+    return fetchResult
   }
 }
 
@@ -96,15 +97,13 @@ if (window.XMLHttpRequest) {
       const handleSendReq = (request) => {
         this.open(request.method, request.url)
         const restReq = withoutProperty(request, ['method', 'url'])
-        for ( header in restReq) {
+        for (const header in restReq) {
           this.setRequestHeader(header, restReq[header])
         }
         super.send(...args)
       }
-
+      getReq(innerObservable, request).then(handleSendReq)
       onRequest.next(Object.assign({}, request, { innerObservable }))
-      getReq(innerObservable, request)
-        .then(handleSendReq)
     }
   }
 }
@@ -142,7 +141,7 @@ function baseResponseListener(response) {
 }
 
 function callListeners(data, listeners) {
-  const handle = listeners.reduce((preFn, nextFn) => (...args) => nextFn(preFn(args)))
+  const handle = listeners.reduce((preFn, nextFn) => (...args) => nextFn(preFn(...args)))
   return handle(data)
 }
 
@@ -164,7 +163,9 @@ function subscribeWithRes(response) {
 onRequest.subscribe(subscribeWithReq)
 onResponse.subscribe(subscribeWithRes)
 
-
+// INIT
+on('request', baseRequestListener)
+on('response', baseResponseListener)
 // export api
 const httpIntercept = { on, off }
 window.httpIntercept = httpIntercept
