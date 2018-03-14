@@ -45,7 +45,7 @@ if (window.fetch) {
   const originFetch = window.fetch
 
   const handleFetchReq = (request) => {
-    const url = request
+    const url = request.url
     const secondParams = withoutProperty(request, 'url')
     return originFetch(url, secondParams)
   }
@@ -64,7 +64,7 @@ if (window.fetch) {
       .then(handleFetchReq)
       .then(handleFetchRes)
 
-    onRequest.next(Object.assign({}, request, { innerObservable }))
+    onRequest.next(Object.assign({}, { request }, { innerObservable }))
 
     return fetchResult
   }
@@ -77,6 +77,10 @@ if (window.XMLHttpRequest) {
     constructor() {
       super()
       this.beSend = false
+      this.onload = function () {
+        const innerObservable = new Rx.Subject()
+        onResponse.next({ response: this, innerObservable })
+      }
     }
 
     open(...args) {
@@ -102,6 +106,7 @@ if (window.XMLHttpRequest) {
         }
         super.send(...args)
       }
+
       getReq(innerObservable, request).then(handleSendReq)
       onRequest.next(Object.assign({}, request, { innerObservable }))
     }
@@ -157,11 +162,12 @@ function subscribeWithReq(request) {
 }
 
 function subscribeWithRes(response) {
-  subscribe(request, onResponseCallback)
+  subscribe(response, onResponseCallback)
 }
 
 onRequest.subscribe(subscribeWithReq)
 onResponse.subscribe(subscribeWithRes)
+
 
 // INIT
 on('request', baseRequestListener)
