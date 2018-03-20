@@ -175,3 +175,12 @@ on('response', baseResponseListener)
 // export api
 const httpIntercept = { on, off }
 window.httpIntercept = httpIntercept
+
+/**
+ * todo:
+ * 
+ * 1. Auto handle Cache.
+ * 2. apply middleware.
+ * 3. wait for async request/response intercept.
+ * 
+ */
