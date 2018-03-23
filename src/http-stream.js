@@ -34,9 +34,10 @@ export function disable() {
  *  fetch request: fetch.
  * 
  */
-class HttpReaderStream {
+class HttpStream {
   
   constructor({ middleware, observerble }) {
+    this.subscribeFn = null
     this.middleware = [].concat(middleware)
     this.observerble = observerble
       .map((req) => ({ request: req, error: null }))
@@ -44,6 +45,29 @@ class HttpReaderStream {
 
   applyMiddleware(fn) {
     this.middleware.push(fn)
+    this.refreshMiddleware()
+    return this.middleware.length
+  }
+
+  delectMiddleware(index) {
+    if (typeof index !== 'number') {
+      return
+    }
+    this.moddleware.splice(index || 0, 1)
+    this.refreshMiddleware()
+  }
+
+  subscribe(fn) {
+    const middlewares = this.middleware
+    const observable = this.initSubscribe()
+    this.subscribeFn = fn
+    observable.subscribe(fn)
+  }
+
+  refreshMiddleware() {
+    if (this.subscribeFn) {
+      this.subscribe(this.subscribeFn)
+    }
   }
 
   createNext(subject, nextData) {
@@ -86,16 +110,22 @@ class HttpReaderStream {
     return observable
   }
 
-  subscribe(fn) {
-    const middlewares = this.middleware
-    const observable = this.initSubscribe()
-    observable.subscribe(fn)
+}
+
+
+class HttpReadStream extends HttpStream {
+  constructor({ type, ...rest }) {
+    super(rest)
+    this.type = type
   }
 }
 
 
-class HttpWriteStream {
-
+class HttpWriteStream extends HttpStream {
+  constructor({ type, ...rest }) {
+    super(rest)
+    this.type = type
+  }
 }
 
 
