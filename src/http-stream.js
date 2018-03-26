@@ -36,10 +36,10 @@ export function disable() {
  */
 class HttpStream {
   
-  constructor({ middleware, observerble }) {
+  constructor({ middleware, observable$ }) {
     this.subscribeFn = null
     this.middleware = [].concat(middleware)
-    this.observerble = observerble
+    this.observable$ = observable$
       .map((req) => ({ request: req, error: null }))
   }
 
@@ -59,9 +59,10 @@ class HttpStream {
 
   subscribe(fn) {
     const middlewares = this.middleware
-    const observable = this.initSubscribe()
+    const observable$ = this.initSubscribe()
     this.subscribeFn = fn
-    observable.subscribe(fn)
+    observable$.subscribe(fn)
+    return observable$
   }
 
   refreshMiddleware() {
@@ -106,17 +107,28 @@ class HttpStream {
   initSubscribe() {
     const middlewares = this.middleware
     const handlers = middlewares.map(handleMiddleware)
-    const observable = handlers.reduce(handleObservable, this.observerble)
-    return observable
+    const observable$ = handlers.reduce(handleObservable, this.observable$)
+    return observable$
   }
 
 }
 
 
 class HttpReadStream extends HttpStream {
-  constructor({ type, ...rest }) {
+  constructor({ type, contextObservable$, ...rest }) {
     super(rest)
     this.type = type
+    this.contextObservable$ = contextObservable$
+  }
+
+  subscribe(fn) {
+    const observable$ = super.subscribe(fn)
+    observable$.unsubscribe()
+    Rx.Observable.zip(
+      observable$,
+      this.contextObservable$,
+      (req, context) => ({ ...req, context }),
+    ).subscribe(fn)
   }
 }
 
