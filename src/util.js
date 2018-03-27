@@ -58,3 +58,29 @@ export function isEmpty(value) {
   const keys = Object.keys(value)
   return keys.length === 0
 }
+
+
+export function uniqueId() {
+  const seed = new Date().getTime()
+  const id = (Math.random() * seed + seed).toFixed(0)
+  return id
+}
+
+export function without(object, props) {
+  const nextObj = Object.assign({}, object)
+  Array.isArray(props)
+    ? props.forEach((property) => delete nextObj[property])
+    : delete nextObj[props]
+  return nextObj
+}
+
+
+export function returnNull() {
+  return () => null
+}
+
+export function noop () {}
+
+export function has(object, property) {
+  return !!(property in object)
+}
