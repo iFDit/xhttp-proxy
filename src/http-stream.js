@@ -40,7 +40,11 @@ class HttpStream {
     this.subscribeFn = null
     this.middleware = [].concat(middleware)
     this.observable$ = observable$
-      .map((req) => ({ request: req, error: null }))
+      .map((data) => ({ data, error: null }))
+    // bind context
+    this.handleMiddleware = this.handleMiddleware.bind(this)
+    this.handleObservable = this.handleObservable.bind(this)
+    this.createSubscribeCallBack = this.createSubscribeCallBack.bind(this)
   }
 
   applyMiddleware(fn) {
@@ -72,17 +76,17 @@ class HttpStream {
   }
 
   createNext(subject, nextData) {
-    return (err, nextReq) => {
+    return (err, data) => {
       nextData.error = err
-      nextData.data = nextReq
+      nextData.data = data
       subject.next()
     }
   }
 
   createSubscribeCallBack(middleware, next) {
-    return ({ req, error }) => {
+    return ({ data, error }) => {
       try {
-        middleware.call(this, error, req, next)
+        middleware.call(this, error, data, next)
       } catch(e) {
         next(e, null)
       }
@@ -106,8 +110,8 @@ class HttpStream {
 
   initSubscribe() {
     const middlewares = this.middleware
-    const handlers = middlewares.map(handleMiddleware)
-    const observable$ = handlers.reduce(handleObservable, this.observable$)
+    const handlers = middlewares.map(this.handleMiddleware)
+    const observable$ = handlers.reduce(this.handleObservable, this.observable$)
     return observable$
   }
 
@@ -115,20 +119,28 @@ class HttpStream {
 
 
 class HttpReadStream extends HttpStream {
-  constructor({ type, contextObservable$, ...rest }) {
+  constructor({ type, ...rest }) {
     super(rest)
     this.type = type
-    this.contextObservable$ = contextObservable$
   }
 
-  subscribe(fn) {
-    const observable$ = super.subscribe(fn)
-    observable$.unsubscribe()
-    Rx.Observable.zip(
-      observable$,
-      this.contextObservable$,
-      (req, context) => ({ ...req, context }),
-    ).subscribe(fn)
+  handleObservable(ob, handler) {
+    let ctx = null
+    const withoutCtx = ob
+      .map(({ data, error }) => {
+        ctx = data && data.ctx
+        return {
+          data: util.without(data, 'ctx'),
+          error,
+        }
+      })
+    const nextOb = super.handleObservable(withoutCtx, handler)
+    return nextOb
+      .map(({ data, error }) =>
+        data.ctx
+          ? { data, error }
+          : { error, ...{ ...data, ctx } }
+      )
   }
 }
 
