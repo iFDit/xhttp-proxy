@@ -38,7 +38,7 @@ class HttpStream {
   
   constructor({ middleware, observable$ }) {
     this.subscribeFn = null
-    this.middleware = [].concat(middleware)
+    this.middleware = middleware ? [].concat(middleware) : []
     this.observable$ = observable$
       .map((data) => ({ data, error: null }))
     // bind context
@@ -101,11 +101,23 @@ class HttpStream {
   }
 
   handleObservable(ob, handler) {
+    let meta = null
     const { next, subject, nextData, middleware } = handler
-    ob.subscribe(this.createSubscribeCallBack(middleware, next))
+    ob.map(({ data, error }) => {
+      meta = data && data.meta
+      return {
+        data: util.without(data, 'meta'),
+        error,
+      }
+    }).subscribe(this.createSubscribeCallBack(middleware, next))
     return ob
       .delayWhen((request) => subject)
       .map((preReq) => (!util.isEmpty(nextData) && nextData) || preReq)
+      .map(({ data, error }) =>
+        data.meta
+          ? { data, error }
+          : { error, data, meta }
+      )
   }
 
   initSubscribe() {
@@ -117,33 +129,12 @@ class HttpStream {
 
 }
 
-
 class HttpReadStream extends HttpStream {
   constructor({ type, ...rest }) {
     super(rest)
     this.type = type
   }
-
-  handleObservable(ob, handler) {
-    let ctx = null
-    const withoutCtx = ob
-      .map(({ data, error }) => {
-        ctx = data && data.ctx
-        return {
-          data: util.without(data, 'ctx'),
-          error,
-        }
-      })
-    const nextOb = super.handleObservable(withoutCtx, handler)
-    return nextOb
-      .map(({ data, error }) =>
-        data.ctx
-          ? { data, error }
-          : { error, ...{ ...data, ctx } }
-      )
-  }
 }
-
 
 class HttpWriteStream extends HttpStream {
   constructor({ type, ...rest }) {
@@ -151,6 +142,4 @@ class HttpWriteStream extends HttpStream {
     this.type = type
   }
 }
-
-
 

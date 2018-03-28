@@ -5,6 +5,7 @@ const window = 1 && (function () { return this })
 const BaseXMLHttpRequest = window.XMLHttpRequest
 const xhrReqObservable$ = new Rx.Subject()
 const xhrResObservable$ = new Rx.Subject()
+const indicate = 'XHR'
 const STATE = {
   UNSENT: 0,
   OPENED: 1,
@@ -16,11 +17,13 @@ const STATE = {
 // util
 const has = util.has
 const noop = util.noop
+const uniqueId = util.uniqueId
 const returnNull = util.returnNull
 
 class HttpRequest extends BaseXMLHttpRequest {
   constructor() {
     super()
+    this.id = uniqueId()
     // save origin method
     const proto = Object.getPrototypeOf(this)
     this.originOpen = proto.open.bind(this)
@@ -112,7 +115,11 @@ class HttpRequest extends BaseXMLHttpRequest {
 
   send(arg) {
     this.readyToSend = true
-    xhrReqObservable$.next({ ...this.request, data: arg, ctx: this })
+    xhrReqObservable$.next({
+      ...this.request,
+      data: arg,
+      meta: { ctx: this, type: indicate, id: this.id },
+    })
   }
 
   onResponse() {
@@ -137,22 +144,32 @@ class HttpRequest extends BaseXMLHttpRequest {
     const statusText = super.statusText
     const headers = this.getAllResponseHeaders()
     const res = { status, resurl, headers, statusText }
-    this.response = Object.assign(this.response, res)
+    // this.response = Object.assign(this.response, res)
     xhrResObservable$.next({
-      ...this.response,
-      ctx: this,
-      state: STATE['HEADERS_RECEIVED'],
+      ...Object.assign(this.response, res),
+      meta: { ctx: this, type: indicate, id: this.id },
+      readystate: STATE['HEADERS_RECEIVED'],
     })
   }
 
   onLoad(readystate) {
     const res = { data: this.getResponseData() }
-    this.response = Object.assign(this.response, res)
+    // this.response = Object.assign(this.response, res)
     xhrResObservable$.next({
-      ...this.response,
-      ctx: this,
-      state: readystate,
+      ...Object.assign(this.response, res),
+      meta: { ctx: this, type: indicate, id: this.id },
+      readystate,
     })
+  }
+
+  triggerEvent(type, ...args) {
+    if (Array.isArray(this.events[type])) {
+      this.events[type].forEach((fn) => fn.apply(this, args))
+    }
+  }
+
+  mergeRespose(nextRes) {
+    this.response = Object.assign(this.response, nextRes)
   }
 
   getResponseData() {
@@ -213,3 +230,7 @@ class HttpRequest extends BaseXMLHttpRequest {
 
 }
 
+module.exports = {
+  STATE,
+
+}
