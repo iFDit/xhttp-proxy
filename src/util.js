@@ -2,11 +2,12 @@
 const window = (1 && (function () { return this }()))
 
 if (!window || window.window !== window) {
-  throw new Error('Error occurred, can only run in browser environment.')
+  // annotation this for test.
+  // throw new Error('Error occurred, can only run in browser environment.')
 }
 
 // use to parse url.
-const a = window.document.createElement('a')
+// const a = window.document.createElement('a')
 
 
 /**
@@ -16,7 +17,7 @@ const a = window.document.createElement('a')
  * @return {object}
  *  
  */
-export function parseUrl(url) {
+function parseUrl(url) {
   a.href = url
   return {
     url: url,                           // origin url.
@@ -50,7 +51,7 @@ function params(searchStr) {
 }
 
 
-export function isEmpty(value) {
+function isEmpty(value) {
   const type = typeof value
   if (type === 'string' || type === 'number' || type === 'boolean' || type === 'symbol') {
     return !value
@@ -60,13 +61,13 @@ export function isEmpty(value) {
 }
 
 
-export function uniqueId() {
+function uniqueId() {
   const seed = new Date().getTime()
   const id = (Math.random() * seed + seed).toFixed(0)
   return id
 }
 
-export function without(object, props) {
+function without(object, props) {
   const nextObj = Object.assign({}, object)
   Array.isArray(props)
     ? props.forEach((property) => delete nextObj[property])
@@ -75,12 +76,22 @@ export function without(object, props) {
 }
 
 
-export function returnNull() {
+function returnNull() {
   return () => null
 }
 
-export function noop () {}
+function noop () {}
 
-export function has(object, property) {
+function has(object, property) {
   return !!(property in object)
+}
+
+module.exports = {
+  parseUrl,
+  isEmpty,
+  uniqueId,
+  without,
+  returnNull,
+  noop,
+  has,
 }
