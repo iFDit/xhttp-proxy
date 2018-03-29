@@ -1,7 +1,7 @@
 const Rx = require('rxjs')
 const util = require('../util')
 
-const window = 1 && (function () { return this })
+const window = 1 && (function () { return this } ())
 const BaseXMLHttpRequest = window.XMLHttpRequest
 const xhrReqObservable$ = new Rx.Subject()
 const xhrResObservable$ = new Rx.Subject()
@@ -24,31 +24,12 @@ class HttpRequest extends BaseXMLHttpRequest {
   constructor() {
     super()
     this.id = uniqueId()
-    // save origin method
-    const proto = Object.getPrototypeOf(this)
-    this.originOpen = proto.open.bind(this)
-    this.originSend = proto.send.bind(this)
-    this.originAbort = has(proto, 'abort')
-      ? proto.abort.bind(this)
-      : noop
-    this.originSetRequestHeader = has(proto, 'setRequestHeader')
-      ? proto.setRequestHeader.bind(this)
-      : noop
-    this.originOverrideMimeType = has(proto, 'overrideMimeType')
-      ? proto.overrideMimeType.bind(this)
-      : noop
-    this.originGetResponseHeader = has(proto, 'getResponseHeader')
-      ? proto.getResponseHeader.bind(this)
-      : returnNull
-    this.originGetAllResponseHeaders = has(proto, 'getAllResponseHeaders')
-      ? proto.getAllResponseHeaders.bind(this)
-      : returnNull
     // bind
     this.onResponse = this.onResponse.bind(this)
     // request object
     this.request = { method: "", url: "", headers: {}, data: null }
     // response object
-    this.response = {
+    this.res = {
       status: 0,
       statusText: "",
       headers: {},
@@ -64,18 +45,50 @@ class HttpRequest extends BaseXMLHttpRequest {
     this.events = {}
     // inner Data
     this.config = { responseType: '' }
-    this._readystate = 0
+    this._readystate = STATE['UNSENT']
+  }
+
+  originOpen(...args) {
+    super.open(...args)
+  }
+
+  originSend(...args) {
+    super.send(...args)
+  }
+
+  originAbort() {
+    super.abort()
+  }
+
+  originSetRequestHeader(...args) {
+    super.setRequestHeader(...args)
+  }
+
+  originOverrideMimeType(...args) {
+    super.overrideMimeType(...args)
+  }
+
+  originGetResponseHeader(...args) {
+    return super.getResponseHeader(...args)
+  }
+
+  originGetAllResponseHeaders(...args) {
+    try {
+      return super.getAllResponseHeaders(...args)
+    } catch(e) {
+      return null
+    }
   }
 
   open(...args) {
     const method = args[0]
     const url = args[1]
-    // const async = args[2]
-    // const user = args[3]
-    // const password = args[4]
     const req = { method, url }
     this.request = Object.assign(this.request, req)
-    this.response = Object.assign(this.response, { requrl: url })
+    this.res = Object.assign(this.res, { requrl: url })
+    // this.originOpen(...args)
+    // this.changestate(STATE['OPENED'])
+    // this.triggerEvent('statechange')
   }
 
   abort(...args) {
@@ -89,7 +102,7 @@ class HttpRequest extends BaseXMLHttpRequest {
     if (!this.sended) {
       return null
     }
-    return this.response.headers
+    return this.res.headers
   }
 
   getResponseHeader(...args) {
@@ -97,7 +110,7 @@ class HttpRequest extends BaseXMLHttpRequest {
       return null
     }
     const key = args[0]
-    return this.response.headers[key] || null
+    return this.res.headers[key] || null
   }
 
   overrideMimeType(...args) {
@@ -115,6 +128,7 @@ class HttpRequest extends BaseXMLHttpRequest {
 
   send(arg) {
     this.readyToSend = true
+    super.onreadystatechange = this.onResponse
     xhrReqObservable$.next({
       ...this.request,
       data: arg,
@@ -124,7 +138,7 @@ class HttpRequest extends BaseXMLHttpRequest {
 
   onResponse() {
     const readystate = super.readyState
-    const handles = this.events.statechange
+
     if (readystate == STATE['DONE']) {
       return this.onLoad(STATE['DONE'])
     }
@@ -134,19 +148,16 @@ class HttpRequest extends BaseXMLHttpRequest {
     if (readystate === STATE['HEADERS_RECEIVED']) {
       return this.onSend()
     }
-    this._readystate = readystate
-    handles.forEach((handle) => handle.call(this))
   }
 
   onSend() {
     const status = super.status
     const resurl = super.responseURL
     const statusText = super.statusText
-    const headers = this.getAllResponseHeaders()
+    const headers = super.getAllResponseHeaders()
     const res = { status, resurl, headers, statusText }
-    // this.response = Object.assign(this.response, res)
     xhrResObservable$.next({
-      ...Object.assign(this.response, res),
+      ...Object.assign(this.res, res),
       meta: { ctx: this, type: indicate, id: this.id },
       readystate: STATE['HEADERS_RECEIVED'],
     })
@@ -156,7 +167,7 @@ class HttpRequest extends BaseXMLHttpRequest {
     const res = { data: this.getResponseData() }
     // this.response = Object.assign(this.response, res)
     xhrResObservable$.next({
-      ...Object.assign(this.response, res),
+      ...Object.assign(this.res, res),
       meta: { ctx: this, type: indicate, id: this.id },
       readystate,
     })
@@ -168,8 +179,16 @@ class HttpRequest extends BaseXMLHttpRequest {
     }
   }
 
-  mergeRespose(nextRes) {
-    this.response = Object.assign(this.response, nextRes)
+  mergeRequest(nextReq) {
+    this.request = Object.assign(this.request, nextReq)
+  }
+
+  mergeResponse(nextRes) {
+    this.res = Object.assign(this.res, nextRes)
+  }
+
+  changestate(nextstate) {
+    this._readystate = nextstate
   }
 
   getResponseData() {
@@ -182,23 +201,23 @@ class HttpRequest extends BaseXMLHttpRequest {
   }
 
   get status() {
-    return this.response.status
+    return this.res.status
   }
 
   get statusText() {
-    return this.response.statusText
+    return this.res.statusText
   }
 
   get response() {
-    return this.response.data
+    return this.res.data
   }
 
   get responseText() {
-    return this.response.data
+    return this.res.data
   }
 
   get responseURL() {
-    return this.response.resurl
+    return this.res.resurl
   }
 
   get onreadystatechange() {
@@ -215,7 +234,7 @@ class HttpRequest extends BaseXMLHttpRequest {
       this.events.statechange.unshift(fn)
     }
     if (!rootFn) {
-      super.onreadystatechange = function () { /* todo */ }
+      super.onreadystatechange = this.onResponse
     }
   }
 
@@ -230,7 +249,18 @@ class HttpRequest extends BaseXMLHttpRequest {
 
 }
 
+function enable() {
+  window.XMLHttpRequest = HttpRequest
+}
+
+function disable() {
+  window.XMLHttpRequest = BaseXMLHttpRequest
+}
+
 module.exports = {
   STATE,
-
+  enable,
+  disable,
+  xhrReqObservable$,
+  xhrResObservable$,
 }

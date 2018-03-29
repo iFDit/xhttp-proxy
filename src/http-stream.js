@@ -38,6 +38,7 @@ class HttpStream {
   
   constructor({ middleware, observable$ }) {
     this.subscribeFn = null
+    this.subscription = null
     this.middleware = middleware ? [].concat(middleware) : []
     this.observable$ = observable$
       .map((data) => ({ data, error: null }))
@@ -65,20 +66,21 @@ class HttpStream {
     const middlewares = this.middleware
     const observable$ = this.initSubscribe()
     this.subscribeFn = fn
-    observable$.subscribe(fn)
+    this.subscription = observable$.subscribe(fn)
     return observable$
   }
 
   refreshMiddleware() {
     if (this.subscribeFn) {
+      this.subscription.unsubscribe()
       this.subscribe(this.subscribeFn)
     }
   }
 
   createNext(subject, nextData) {
     return (err, data) => {
-      nextData.error = err
-      nextData.data = data
+      err && (nextData.error = err)
+      data && (nextData.data = data)
       subject.next()
     }
   }
@@ -103,21 +105,22 @@ class HttpStream {
   handleObservable(ob, handler) {
     let meta = null
     const { next, subject, nextData, middleware } = handler
+    const nextOb = ob
+      .delayWhen((request) => subject)
+      .map((preReq) => (!util.isEmpty(nextData) && nextData) || preReq)
+      .map(({ data, error }) => {
+        return data.meta
+          ? { data, error }
+          : { error, data: { ...data, meta } }
+      })
     ob.map(({ data, error }) => {
       meta = data && data.meta
       return {
         data: util.without(data, 'meta'),
         error,
       }
-    }).subscribe(this.createSubscribeCallBack(middleware, next))
-    return ob
-      .delayWhen((request) => subject)
-      .map((preReq) => (!util.isEmpty(nextData) && nextData) || preReq)
-      .map(({ data, error }) =>
-        data.meta
-          ? { data, error }
-          : { error, data, meta }
-      )
+    }).delay(10).subscribe(this.createSubscribeCallBack(middleware, next))
+    return nextOb
   }
 
   initSubscribe() {
@@ -143,3 +146,7 @@ class HttpWriteStream extends HttpStream {
   }
 }
 
+export default {
+  HttpReadStream,
+  HttpWriteStream,
+}
