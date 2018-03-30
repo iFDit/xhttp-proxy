@@ -3,11 +3,11 @@ const window = (1 && (function () { return this }()))
 
 if (!window || window.window !== window) {
   // annotation this for test.
-  // throw new Error('Error occurred, can only run in browser environment.')
+  throw new Error('Error occurred, can only run in browser environment.')
 }
 
 // use to parse url.
-// const a = window.document.createElement('a')
+const a = window.document.createElement('a')
 
 
 /**
@@ -86,6 +86,59 @@ function has(object, property) {
   return !!(property in object)
 }
 
+function s2j(str) {
+  try {
+    return JSON.parse(str)
+  } catch(e) {
+    return null
+  }
+}
+
+function s2doc(str, mime = 'text/html') {
+  const parser = new DOMParser()
+  parser.parseFromString(str, mime);
+}
+
+function s2ab(str) {
+  if (window.TextEncoder) {
+    return new TextEncoder('utf-8').encode(str)
+  } else {
+    const buf = new ArrayBuffer(str.length)
+    const bufView = new Uint8Array(buf)
+    for (let i=0; i < str.length; i++) {
+      bufView[i] = str.charCodeAt(i);
+    }
+    return buf
+  }
+}
+
+function ab2s(ab) {
+  if (typeof ab === 'string') { return ab }
+  try {
+    if (window.TextDecoder) {
+      return new TextDecoder('utf-8').decode(ab)
+    } else {
+      return String.fromCharCode.apply(null, new Uint8Array(ab));
+    }
+  } catch(e) {
+    return ab
+  }
+}
+
+function s2b(str) {
+  return new Blob([mystring], {
+    type: 'text/plain'
+  })
+}
+
+const transform = {
+  s2j,
+  s2b,
+  s2ab,
+  s2doc,
+  ab2s,
+}
+
 module.exports = {
   parseUrl,
   isEmpty,
@@ -94,4 +147,5 @@ module.exports = {
   returnNull,
   noop,
   has,
+  transform,
 }
