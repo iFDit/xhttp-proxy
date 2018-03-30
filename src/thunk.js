@@ -75,6 +75,7 @@ function handleHttpWriteStream(bundle) {
       const loading = cache[STATE['LOADING']] || (cache[STATE['LOADING']] = {})
       const res = without(response, withoutProps)
       const data = loading.data || (loading.data = [])
+      res.data = context.getResponseData()
       if (receive && receive.done) {
         handleLoading(loading, context, data.concat(res))
       } else {
@@ -87,6 +88,7 @@ function handleHttpWriteStream(bundle) {
       const loading = cache[STATE['LOADING']]
       const done = cache[STATE['DONE']]
       const res = without(response, withoutProps)
+      res.data = context.getResponseData()
       if (loading && loading.done) {
         handleDone(done, context, res)
       } else {
