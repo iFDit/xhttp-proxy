@@ -88,7 +88,7 @@ class HttpStream {
   createSubscribeCallBack(middleware, next) {
     return ({ data, error }) => {
       try {
-        middleware.call(this, error, data, next)
+        middleware.call(this, error, Object.assign({}, data), next)
       } catch(e) {
         next(e, null)
       }
@@ -109,7 +109,7 @@ class HttpStream {
       .delayWhen((request) => subject)
       .map((preReq) => (!util.isEmpty(nextData) && nextData) || preReq)
       .map(({ data, error }) => {
-        return data.meta
+        return data && data.meta
           ? { data, error }
           : { error, data: { ...data, meta } }
       })
@@ -119,7 +119,7 @@ class HttpStream {
         data: util.without(data, 'meta'),
         error,
       }
-    }).delay(10).subscribe(this.createSubscribeCallBack(middleware, next))
+    }).delay(0).subscribe(this.createSubscribeCallBack(middleware, next))
     return nextOb
   }
 
