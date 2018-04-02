@@ -35,8 +35,8 @@ class HttpRequest extends BaseXMLHttpRequest {
       statusText: "",
       headers: {},
       data: null,
-      requrl: null,
-      resurl: null,
+      request: null,
+      url: null,
     }
     // status
     this.readyToSend = false
@@ -86,7 +86,6 @@ class HttpRequest extends BaseXMLHttpRequest {
     const url = args[1]
     const req = { method, url }
     this.request = Object.assign(this.request, req)
-    this.res = Object.assign(this.res, { requrl: url })
   }
 
   abort(...args) {
@@ -127,6 +126,7 @@ class HttpRequest extends BaseXMLHttpRequest {
   send(arg) {
     this.readyToSend = true
     super.onreadystatechange = this.onResponse
+    this.mergeResponse({ request: Object.assign({}, this.request) })
     xhrReqObservable$.next({
       ...this.request,
       data: arg,
@@ -150,10 +150,10 @@ class HttpRequest extends BaseXMLHttpRequest {
 
   onSend() {
     const status = super.status
-    const resurl = super.responseURL
+    const url = super.responseURL
     const statusText = super.statusText
     const headers = this.formatHeaders(super.getAllResponseHeaders())
-    const res = { status, resurl, headers, statusText }
+    const res = { status, url, headers, statusText }
     xhrResObservable$.next({
       ...Object.assign(this.res, res),
       meta: { ctx: this, type: indicate, id: this.id },
@@ -282,7 +282,7 @@ class HttpRequest extends BaseXMLHttpRequest {
   }
 
   get responseURL() {
-    return this.res.resurl
+    return this.res.url
   }
 
   get onreadystatechange() {
