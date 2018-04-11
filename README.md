@@ -1,2 +1,2 @@
-# http-intercept
-浏览器http请求拦截
+# http-proxy
+浏览器http代理
