@@ -38,6 +38,9 @@ function handleHttpReadStream(bundle) {
     handleHeaders(headers, context)
     context.mergeRequest({ data: sendData })
     context.mergeResponse({ request: Object.assign({}, context.request) })
+	context.onerror = context.handleException
+    context.abort = context.handleException
+    context.timeout = context.handleException
     context.originSend(sendData)
     context.sended = true
   }
