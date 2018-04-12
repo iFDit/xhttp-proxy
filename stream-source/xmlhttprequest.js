@@ -48,9 +48,6 @@ class HttpRequest extends BaseXMLHttpRequest {
     // inner Data
     this.config = { responseType: { from: "", to: null } }
     this._readystate = STATE['UNSENT']
-    this.onerror = this.handleException
-    this.abort = this.handleException
-    this.timeout = this.handleException
   }
 
   originOpen(...args) {
@@ -102,7 +99,6 @@ class HttpRequest extends BaseXMLHttpRequest {
   handleException() {
     xhrReqObservable$.next({
       ...this.res,
-      data: arg,
       meta: { ctx: this, type: indicate, id: this.id },
       exception: true
     })
