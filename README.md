@@ -1,2 +1,2 @@
 # http-proxy
-浏览器http代理
+To investigate XMLHttpRequest and Rxjs
